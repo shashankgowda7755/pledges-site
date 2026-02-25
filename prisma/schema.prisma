@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Organization {
+  id                 String       @id @default(cuid())
+  name               String
+  logoUrl            String?
+  posterLogoUrl      String?
+  posterLogoPosition String? // Was Json, changed to String for SQLite
+  // { "x": 200, "y": 1100, "w": 150 } — pixel coords at 1080px canvas width
+  contactEmail       String
+  type               String       // school | ngo | company | other
+  isActive           Boolean      @default(true)
+  pledges            Pledge[]
+  submissions        Submission[]
+  quizAttempts       QuizAttempt[]
+  createdAt          DateTime     @default(now())
+}
+
+model Pledge {
+  id            String               @id @default(cuid())
+  slug          String               @unique
+  name          String
+  description   String
+  category      String               // environment | health | social | lifestyle
+  bgImageUrl    String               // poster background image (1080x1350)
+  impactMetric  String               // "bottles_saved" | "trees_planted" etc.
+  impactPerUnit Float
+  isActive      Boolean              @default(true)
+  isFeatured    Boolean              @default(false)
+  eventDate     DateTime?            // null = evergreen lifestyle pledge
+  createdAt     DateTime             @default(now())
+  submissions   Submission[]
+  commitments   PledgeCommitment[]   // The 10 checkbox lines users must tick
+  organization  Organization?        @relation(fields: [orgId], references: [id])
+  orgId         String?
+}
+
+model PledgeCommitment {
+  id       String @id @default(cuid())
+  pledgeId String
+  pledge   Pledge @relation(fields: [pledgeId], references: [id])
+  text     String // The commitment statement shown as a checkbox line
+  order    Int    // Display order 1–10 (managed in Supabase Studio)
+}
+
+model Submission {
+  id           String        @id @default(cuid())
+  pledgeId     String
+  pledge       Pledge        @relation(fields: [pledgeId], references: [id])
+  orgId        String?
+  organization Organization? @relation(fields: [orgId], references: [id])
+  userName     String
+  userEmail    String
+  createdAt    DateTime      @default(now())
+
+  @@unique([userEmail, pledgeId])
+}
+
+model Quiz {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  description String
+  category    String
+  bgImageUrl  String
+  isActive    Boolean       @default(true)
+  isFeatured  Boolean       @default(false)
+  questions   Question[]
+  attempts    QuizAttempt[]
+  createdAt   DateTime      @default(now())
+}
+
+model Question {
+  id            String         @id @default(cuid())
+  quizId        String
+  quiz          Quiz           @relation(fields: [quizId], references: [id])
+  text          String
+  order         Int
+  answerOptions AnswerOption[]
+}
+
+model AnswerOption {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+  text       String
+  isCorrect  Boolean  @default(false)
+  order      Int      // 1=A, 2=B, 3=C, 4=D
+}
+
+model QuizAttempt {
+  id             String        @id @default(cuid())
+  quizId         String
+  quiz           Quiz          @relation(fields: [quizId], references: [id])
+  orgId          String?
+  organization   Organization? @relation(fields: [orgId], references: [id])
+  userName       String
+  userEmail      String
+  score          Int
+  totalQuestions Int
+  createdAt      DateTime      @default(now())
+
+  @@unique([userEmail, quizId])
+}
+
+model EmailSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model OrgInquiry {
+  id          String   @id @default(cuid())
+  orgName     String
+  orgType     String
+  contactName String
+  email       String
+  phone       String?
+  cause       String
+  message     String
+  createdAt   DateTime @default(now())
+}
