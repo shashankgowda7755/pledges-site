@@ -3,6 +3,8 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import prisma from '@/lib/prisma';
 
+export const dynamic = "force-dynamic";
+
 export default async function CalendarPage() {
   const pledges = await prisma.pledge.findMany({
     where: { isActive: true, eventDate: { not: null } },

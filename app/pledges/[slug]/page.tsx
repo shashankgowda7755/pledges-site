@@ -17,6 +17,8 @@ export async function generateMetadata(context: { params: Promise<{ slug: string
   };
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function PledgeLandingPage(context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params;
   const pledge = await prisma.pledge.findUnique({
