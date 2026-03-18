@@ -3,6 +3,8 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import prisma from '@/lib/prisma';
 
+export const dynamic = "force-dynamic";
+
 export default async function QuizPage() {
   const quizzes = await prisma.quiz.findMany({
     where: { isActive: true },
