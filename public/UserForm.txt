@@ -1,0 +1,424 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { UserData, FIXED_PLEDGE } from '../types';
+import { Upload, X, ChevronRight, Camera, Crop, Pencil, Mail, ChevronDown } from 'lucide-react';
+import { COUNTRY_CODES } from '../utils/countries';
+
+interface UserFormProps {
+  userData: UserData;
+  setUserData: (data: UserData) => void;
+  onBack: () => void;
+  onContinue: () => void;
+}
+
+export const UserForm: React.FC<UserFormProps> = ({ userData, setUserData, onBack, onContinue }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const cropperImageRef = useRef<HTMLImageElement>(null);
+
+  const [error, setError] = useState<string>('');
+
+  // Modal States
+  const [showCamera, setShowCamera] = useState(false);
+  const [showCropper, setShowCropper] = useState(false);
+
+  // Temporary image storage for cropping
+  const [tempImage, setTempImage] = useState<string | null>(null);
+  const [cropper, setCropper] = useState<any>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+
+  // --- Photo Input Handlers ---
+
+  // Clean up Blob URLs to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (tempImage && tempImage.startsWith('blob:')) {
+        URL.revokeObjectURL(tempImage);
+      }
+    };
+  }, [tempImage]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // Increased limit to 10MB as blobbing is efficient
+        setError('Image size should be less than 10MB');
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(file);
+      setTempImage(objectUrl);
+      setShowCropper(true);
+      setError('');
+    }
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      setStream(mediaStream);
+      setShowCamera(true);
+      setError('');
+    } catch (err) {
+      console.error(err);
+      setError('Unable to access camera. Please allow permissions or upload a file.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setShowCamera(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Horizontal flip for mirror effect if using user-facing camera
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(videoRef.current, 0, 0);
+
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        setTempImage(dataUrl);
+        stopCamera();
+        setShowCropper(true);
+      }
+    }
+  };
+
+  // Attach stream to video element when camera modal opens
+  useEffect(() => {
+    if (showCamera && videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [showCamera, stream]);
+
+  // --- Cropper Logic ---
+
+  useEffect(() => {
+    if (showCropper && cropperImageRef.current) {
+      const timer = setTimeout(() => {
+        const newCropper = new (window as any).Cropper(cropperImageRef.current, {
+          aspectRatio: 1,
+          viewMode: 1,
+          dragMode: 'move',
+          autoCropArea: 0.8,
+          guides: true,
+          center: true,
+          highlight: false,
+          background: false,
+          modal: true,
+          cropBoxMovable: true,
+          cropBoxResizable: true,
+          toggleDragModeOnDblclick: false,
+        });
+        setCropper(newCropper);
+      }, 10);
+      return () => clearTimeout(timer);
+    }
+
+    return () => {
+      if (cropper) {
+        cropper.destroy();
+        setCropper(null);
+      }
+    };
+  }, [showCropper]);
+
+  const saveCrop = () => {
+    if (cropper) {
+      const canvas = cropper.getCroppedCanvas({
+        width: 1080,
+        height: 1080,
+        fillColor: '#fff',
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high',
+      });
+
+      const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+      setUserData({ ...userData, photo: croppedDataUrl });
+      setShowCropper(false);
+      setTempImage(null);
+    }
+  };
+
+  const cancelCrop = () => {
+    setShowCropper(false);
+    setTempImage(null);
+  };
+
+  // --- Form Validation ---
+
+  const isFormValid = () => {
+    return (
+      userData.fullName.trim().length > 2 &&
+      userData.email.trim().includes('@') &&
+      userData.phone.trim().length >= 10
+      // && userData.photo !== ''
+    );
+  };
+
+  const handleContinue = () => {
+    if (isFormValid()) {
+      onContinue();
+    } else {
+      setError('Please fill all fields and add a photo to continue.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-sky-50 pt-20 pb-12 px-4 flex flex-col items-center justify-center">
+      <div className="w-full max-w-2xl">
+
+        {/* Main Card */}
+        <div className="bg-white rounded-[2rem] shadow-xl p-8 md:p-12 relative">
+
+          {/* Back Button - floating absolute top left inside padding */}
+          <button
+            onClick={onBack}
+            className="absolute top-8 left-8 text-stone-400 hover:text-stone-600 transition-colors"
+          >
+            ← Back
+          </button>
+
+          {/* Heading */}
+          <h2 className="text-4xl font-display font-bold text-stone-900 text-center mb-10 mt-2">
+            Enter Your Details
+          </h2>
+
+          <div className="flex flex-col gap-8">
+
+            {/* Photo Section */}
+            <div className="flex flex-col items-center">
+              <div
+                className="relative w-32 h-32 mb-5 group cursor-pointer"
+                onClick={() => {
+                  if (userData.photo) {
+                    setTempImage(userData.photo);
+                    setShowCropper(true);
+                  } else {
+                    fileInputRef.current?.click();
+                  }
+                }}
+              >
+                {/* Circle Container */}
+                <div className={`w-full h-full rounded-full flex items-center justify-center overflow-hidden transition-all duration-300 ${userData.photo ? 'bg-white shadow-md' : 'bg-slate-50 border-2 border-slate-100'}`}>
+                  {userData.photo ? (
+                    <img src={userData.photo} className="w-full h-full object-cover" alt="Profile" />
+                  ) : (
+                    <Camera className="text-slate-400 opacity-50" size={36} strokeWidth={1.5} />
+                  )}
+                </div>
+
+                {/* Edit Button Bubble */}
+                <div className="absolute bottom-1 right-1 w-9 h-9 bg-sky-500 rounded-full flex items-center justify-center border-[3px] border-white shadow-sm transition-transform group-hover:scale-110">
+                  <Pencil size={14} className="text-white fill-white" />
+                </div>
+              </div>
+
+              {/* Action Links */}
+              <div className="flex items-center gap-4 text-xs font-bold tracking-widest text-sky-500">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="hover:text-sky-600 transition-colors uppercase"
+                >
+                  Upload Photo
+                </button>
+                <span className="text-slate-300 text-lg font-light">|</span>
+                <button
+                  onClick={startCamera}
+                  className="hover:text-sky-600 transition-colors uppercase"
+                >
+                  Use Camera
+                </button>
+              </div>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleFileChange}
+              />
+            </div>
+
+            {/* Inputs Section */}
+            <div className="space-y-6">
+
+              {/* Full Name */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 ml-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={userData.fullName}
+                  onChange={(e) => setUserData({ ...userData, fullName: e.target.value })}
+                  placeholder="e.g. Jane Doe"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-stone-700 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-sky-100 focus:border-sky-400 outline-none transition-all"
+                />
+              </div>
+
+              {/* Grid for Contact Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                {/* WhatsApp */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 ml-1">
+                    Whatsapp
+                  </label>
+                  <div className="flex bg-slate-50 border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-sky-100 focus-within:border-sky-400 focus-within:bg-white transition-all">
+                    <div className="bg-slate-100 px-2 flex items-center text-stone-600 font-medium border-r border-slate-200 gap-1 min-w-[100px] justify-center cursor-pointer hover:bg-slate-200 transition-colors relative">
+                      <select
+                        className="bg-transparent outline-none appearance-none cursor-pointer w-full text-center py-4 pl-2 pr-6 z-10"
+                        value={userData.countryCode}
+                        onChange={(e) => setUserData({ ...userData, countryCode: e.target.value })}
+                      >
+                        {COUNTRY_CODES.map((country, index) => (
+                          <option key={`${country.code}-${index}`} value={country.code}>
+                            {country.name} ({country.code})
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className="text-stone-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" />
+                    </div>
+                    <input
+                      type="tel"
+                      value={userData.phone}
+                      onChange={(e) => setUserData({ ...userData, phone: e.target.value.replace(/\D/g, '') })}
+                      placeholder="98765 43210"
+                      className="flex-1 bg-transparent border-none px-5 py-4 text-stone-700 placeholder-slate-400 outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 ml-1">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={userData.email}
+                      onChange={(e) => setUserData({ ...userData, email: e.target.value })}
+                      placeholder="name@example.com"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 pr-12 text-stone-700 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-sky-100 focus:border-sky-400 outline-none transition-all"
+                    />
+                    <Mail className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl flex items-center gap-2 animate-pulse">
+                <X size={16} /> {error}
+              </div>
+            )}
+
+            {/* Continue Button - Floating/Sticky or Static */}
+            <div className="pt-4">
+              <button
+                onClick={handleContinue}
+                className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg transform active:scale-[0.98] ${isFormValid()
+                  ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-blue-500/30 hover:shadow-blue-500/40 hover:-translate-y-1'
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+              >
+                Continue <ChevronRight size={20} />
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {/* --- CAMERA MODAL (Unchanged Logic, just wrapper style tweak) --- */}
+      {showCamera && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
+          <div className="relative w-full max-w-lg bg-black rounded-2xl overflow-hidden aspect-[3/4] md:aspect-video flex items-center justify-center border border-stone-800">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-cover transform scale-x-[-1]"
+            />
+            <div className="absolute inset-0 pointer-events-none border-[1px] border-white/20"></div>
+
+            {/* Controls */}
+            <div className="absolute bottom-6 w-full flex items-center justify-center gap-8">
+              <button
+                onClick={stopCamera}
+                className="w-12 h-12 rounded-full bg-stone-800 text-white flex items-center justify-center hover:bg-stone-700 transition-colors"
+              >
+                <X size={20} />
+              </button>
+              <button
+                onClick={capturePhoto}
+                className="w-16 h-16 rounded-full bg-white border-4 border-stone-300 flex items-center justify-center hover:scale-105 transition-transform"
+              >
+                <div className="w-12 h-12 rounded-full bg-sky-500"></div>
+              </button>
+              <div className="w-12"></div>
+            </div>
+          </div>
+          <p className="text-white mt-4 text-sm font-medium opacity-80">Position your face within the frame</p>
+        </div>
+      )}
+
+      {/* --- CROPPER MODAL (Unchanged Logic, consistent styling) --- */}
+      {showCropper && tempImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white z-10">
+              <div className="flex items-center gap-2">
+                <Crop size={20} className="text-sky-500" />
+                <h3 className="font-bold text-lg text-slate-800">Adjust Photo</h3>
+              </div>
+              <button onClick={cancelCrop} className="text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="relative flex-1 bg-slate-900 overflow-hidden min-h-[300px]">
+              <img
+                ref={cropperImageRef}
+                src={tempImage}
+                alt="Crop Preview"
+                className="max-w-full opacity-0"
+              />
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-3 z-10">
+              <button
+                onClick={cancelCrop}
+                className="px-6 py-2.5 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveCrop}
+                className="px-6 py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-xl shadow-lg shadow-sky-500/20 transition-colors"
+              >
+                Save Photo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};

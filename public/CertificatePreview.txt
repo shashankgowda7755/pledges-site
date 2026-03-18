@@ -1,0 +1,54 @@
+import React from 'react';
+import { UserData, FIXED_PLEDGE } from '../types';
+import { Poster } from './Poster';
+import { Edit2, CheckCircle2 } from 'lucide-react';
+
+interface PreviewProps {
+  userData: UserData;
+  onBack: () => void;
+  onConfirm: () => void;
+}
+
+export const CertificatePreview: React.FC<PreviewProps> = ({ userData, onBack, onConfirm }) => {
+  
+  return (
+    <div className="min-h-screen bg-stone-50 pt-20 pb-12 px-4 flex flex-col items-center">
+      <div className="w-full max-w-lg flex flex-col items-center">
+        {/* Header */}
+        <div className="w-full flex items-center justify-between mb-8">
+          <button onClick={onBack} className="text-stone-500 hover:text-stone-800 font-medium">
+            ← Edit Details
+          </button>
+          <div className="text-sm font-semibold text-orange-600 bg-orange-100 px-3 py-1 rounded-full">
+            Step 2 of 3
+          </div>
+        </div>
+
+        <h2 className="text-2xl font-display font-bold text-indiaNavy mb-2 text-center">Preview Certificate</h2>
+        <p className="text-stone-500 mb-8 text-center text-sm">Review your details carefully. This is how your certificate will look.</p>
+
+        {/* Preview Container */}
+        {/* We simply constrain the width here. The Poster component handles aspect ratio and scaling. */}
+        <div className="w-full max-w-[350px] shadow-2xl rounded-lg overflow-hidden mb-8 bg-white border border-gray-100">
+           <Poster userData={userData} pledge={FIXED_PLEDGE} />
+        </div>
+
+        {/* Buttons */}
+        <div className="w-full flex gap-3">
+          <button 
+            onClick={onBack}
+            className="flex-1 py-3 bg-white border border-stone-200 text-stone-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-stone-50 transition-colors"
+          >
+            <Edit2 size={18} /> Modify
+          </button>
+          <button 
+            onClick={onConfirm}
+            className="flex-1 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white font-bold rounded-xl shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 hover:shadow-orange-500/30 transition-all"
+          >
+            Looks Good <CheckCircle2 size={18} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

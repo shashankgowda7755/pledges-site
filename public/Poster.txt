@@ -1,0 +1,54 @@
+import React from 'react';
+import { UserData, Pledge } from '../types';
+
+/* 
+  POSTER COMPONENT - Uses image from public/assets/poster_bg.png
+  The image path is simple (no spaces) to ensure it works in production.
+*/
+
+interface PosterProps {
+  id?: string;
+  userData: UserData;
+  pledge?: Pledge;
+  className?: string;
+}
+
+export const Poster: React.FC<PosterProps> = ({ id, userData, className = '' }) => {
+  return (
+    <div
+      id={id || 'certificate-visual'}
+      className={`relative aspect-[1080/1600] bg-white overflow-hidden text-gray-900 mx-auto shadow-sm ${className}`}
+    >
+
+      {/* Layer 1: Background Image */}
+      <img
+        src="/assets/poster.png"
+        className="absolute inset-0 w-full h-full object-cover"
+        alt="Background"
+      />
+
+      {/* Layer 2: Dynamic User Photo */}
+      <div className="absolute top-[30.3%] left-[26.1%] w-[40.8%] aspect-square rounded-full overflow-hidden z-10 flex items-center justify-center bg-gray-100/50">
+        <img
+          src={userData.photo || '/assets/user_placeholder.png'}
+          className="w-full h-full object-cover"
+          alt="User Photo"
+        />
+      </div>
+
+      {/* Layer 3: Dynamic User Name */}
+      <div className="absolute top-[59.94%] left-0 w-full z-10 flex items-center justify-center">
+        <h2
+          className="text-black font-bold tracking-wide leading-none w-full text-center px-8"
+          style={{
+            fontFamily: '"Inria Serif", serif',
+            fontSize: (userData.fullName || 'Ram Kumar').length > 17 ? '25px' : '30px'
+          }}
+        >
+          {userData.fullName || 'Ram Kumar'}
+        </h2>
+      </div>
+
+    </div>
+  );
+};

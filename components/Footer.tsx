@@ -26,7 +26,7 @@ export function Footer() {
             <h4 className="font-semibold text-gray-900 mb-4">Social</h4>
             <ul className="space-y-3">
               <li><a href="https://instagram.com/pledgemarks" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900">Instagram</a></li>
-              <li><a href="https://linkedin.com/company/pledgemarks" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900">LinkedIn</a></li>
+              <li><a href="#" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900">LinkedIn</a></li>
               <li><a href="https://twitter.com/pledgemarks" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900">Twitter/X</a></li>
               <li><a href="https://wa.me/1234567890" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900">WhatsApp</a></li>
             </ul>
